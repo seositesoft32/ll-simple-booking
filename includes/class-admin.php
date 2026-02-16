@@ -11,12 +11,18 @@ class Admin
     /** @var Settings */
     private $settings;
 
-    public function __construct(Settings $settings)
+    /** @var License */
+    private $license;
+
+    public function __construct(Settings $settings, License $license)
     {
         $this->settings = $settings;
+        $this->license  = $license;
 
         add_action('admin_menu', [$this, 'menu']);
         add_action('admin_init', [$this->settings, 'register']);
+        add_action('admin_post_llsba_activate_license', [$this, 'activate_license']);
+        add_action('admin_post_llsba_deactivate_license', [$this, 'deactivate_license']);
     }
 
     public function menu(): void
@@ -47,6 +53,15 @@ class Admin
             'manage_options',
             'llsba-settings',
             [$this, 'settings_page']
+        );
+
+        add_submenu_page(
+            'llsba-bookings',
+            __('License', 'll-simple-booking'),
+            __('License', 'll-simple-booking'),
+            'manage_options',
+            'llsba-license',
+            [$this, 'license_page']
         );
     }
 
@@ -169,5 +184,118 @@ class Admin
             </form>
         </div>
         <?php
+    }
+
+    public function license_page(): void
+    {
+        if (! current_user_can('manage_options')) {
+            return;
+        }
+
+        $data = $this->license->get_data();
+        ?>
+        <div class="wrap">
+            <h1><?php esc_html_e('License', 'll-simple-booking'); ?></h1>
+
+            <?php if (isset($_GET['llsba_notice'])) : ?>
+                <div class="notice notice-<?php echo isset($_GET['llsba_success']) ? 'success' : 'error'; ?> is-dismissible">
+                    <p><?php echo esc_html(sanitize_text_field((string) wp_unslash($_GET['llsba_notice']))); ?></p>
+                </div>
+            <?php endif; ?>
+
+            <table class="widefat striped" style="max-width: 820px; margin-bottom: 20px;">
+                <tbody>
+                    <tr>
+                        <th><?php esc_html_e('Status', 'll-simple-booking'); ?></th>
+                        <td><?php echo esc_html($this->license->status_label()); ?></td>
+                    </tr>
+                    <tr>
+                        <th><?php esc_html_e('Source', 'll-simple-booking'); ?></th>
+                        <td><?php echo esc_html(ucfirst((string) ($data['source'] ?? 'envato'))); ?></td>
+                    </tr>
+                    <tr>
+                        <th><?php esc_html_e('Purchase Code', 'll-simple-booking'); ?></th>
+                        <td><?php echo esc_html($this->license->masked_purchase_code() ?: __('Not saved', 'll-simple-booking')); ?></td>
+                    </tr>
+                    <tr>
+                        <th><?php esc_html_e('Last checked', 'll-simple-booking'); ?></th>
+                        <td><?php echo esc_html(! empty($data['last_checked']) ? wp_date('Y-m-d H:i', (int) $data['last_checked']) : __('Never', 'll-simple-booking')); ?></td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="margin-bottom: 20px;">
+                <?php wp_nonce_field('llsba_activate_license'); ?>
+                <input type="hidden" name="action" value="llsba_activate_license" />
+
+                <table class="form-table" role="presentation">
+                    <tr>
+                        <th scope="row"><label for="llsba-license-source"><?php esc_html_e('License Source', 'll-simple-booking'); ?></label></th>
+                        <td>
+                            <select id="llsba-license-source" name="source">
+                                <option value="envato"><?php esc_html_e('ThemeForest / Envato', 'll-simple-booking'); ?></option>
+                                <option value="direct"><?php esc_html_e('Direct Sale', 'll-simple-booking'); ?></option>
+                            </select>
+                            <p class="description"><?php esc_html_e('Choose Envato for ThemeForest purchase codes, or Direct Sale for your own license keys.', 'll-simple-booking'); ?></p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><label for="llsba-purchase-code"><?php esc_html_e('License Code', 'll-simple-booking'); ?></label></th>
+                        <td>
+                            <input id="llsba-purchase-code" type="text" class="regular-text" name="purchase_code" value="" autocomplete="off" />
+                            <p class="description"><?php esc_html_e('Enter your ThemeForest purchase code or direct license key.', 'll-simple-booking'); ?></p>
+                        </td>
+                    </tr>
+                </table>
+
+                <?php submit_button(__('Activate License', 'll-simple-booking')); ?>
+            </form>
+
+            <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+                <?php wp_nonce_field('llsba_deactivate_license'); ?>
+                <input type="hidden" name="action" value="llsba_deactivate_license" />
+                <?php submit_button(__('Deactivate License', 'll-simple-booking'), 'secondary'); ?>
+            </form>
+        </div>
+        <?php
+    }
+
+    public function activate_license(): void
+    {
+        if (! current_user_can('manage_options')) {
+            wp_die(esc_html__('Unauthorized request.', 'll-simple-booking'));
+        }
+
+        check_admin_referer('llsba_activate_license');
+
+        $purchase_code = sanitize_text_field((string) wp_unslash($_POST['purchase_code'] ?? ''));
+        $source        = sanitize_text_field((string) wp_unslash($_POST['source'] ?? 'envato'));
+        $result        = $this->license->activate($purchase_code, $source);
+
+        $this->redirect_license_page((string) $result['message'], ! empty($result['success']));
+    }
+
+    public function deactivate_license(): void
+    {
+        if (! current_user_can('manage_options')) {
+            wp_die(esc_html__('Unauthorized request.', 'll-simple-booking'));
+        }
+
+        check_admin_referer('llsba_deactivate_license');
+
+        $result = $this->license->deactivate();
+        $this->redirect_license_page((string) $result['message'], ! empty($result['success']));
+    }
+
+    private function redirect_license_page(string $message, bool $success): void
+    {
+        $url = add_query_arg([
+            'page'          => 'llsba-license',
+            'llsba_notice'  => $message,
+            'llsba_success' => $success ? '1' : null,
+        ], admin_url('admin.php'));
+
+        wp_safe_redirect($url);
+        exit;
     }
 }

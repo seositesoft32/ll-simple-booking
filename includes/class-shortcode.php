@@ -11,9 +11,13 @@ class Shortcode
     /** @var Settings */
     private $settings;
 
-    public function __construct(Settings $settings)
+    /** @var License */
+    private $license;
+
+    public function __construct(Settings $settings, License $license)
     {
         $this->settings = $settings;
+        $this->license  = $license;
 
         add_shortcode('llsba_booking_form', [$this, 'render']);
         add_action('wp_enqueue_scripts', [$this, 'register_assets']);
@@ -39,6 +43,14 @@ class Shortcode
 
     public function render(): string
     {
+        if (! $this->license->can_run()) {
+            if (current_user_can('manage_options')) {
+                return '<p>' . esc_html__('Booking form is disabled. Activate your license in Simple Booking > License.', 'll-simple-booking') . '</p>';
+            }
+
+            return '<p>' . esc_html__('Booking form is currently unavailable.', 'll-simple-booking') . '</p>';
+        }
+
         wp_enqueue_style('llsba-frontend');
         wp_enqueue_script('llsba-frontend');
 
@@ -46,6 +58,9 @@ class Shortcode
             'ajaxUrl' => admin_url('admin-ajax.php'),
             'nonce'   => wp_create_nonce('llsba_nonce'),
             'today'   => wp_date('Y-m-d'),
+            'license' => [
+                'active' => $this->license->can_run(),
+            ],
             'labels'  => [
                 'step1'          => __('Step 1: Contact Number', 'll-simple-booking'),
                 'step2'          => __('Step 2: Calendar', 'll-simple-booking'),
@@ -58,6 +73,7 @@ class Shortcode
                 'bookingSaved'   => __('Your appointment is booked. Thank you!', 'll-simple-booking'),
                 'bookingsLabel'  => __('Bookings', 'll-simple-booking'),
                 'availableLabel' => __('Available', 'll-simple-booking'),
+                'unlicensed'     => __('Booking form is unavailable due to missing/invalid license.', 'll-simple-booking'),
             ],
         ]);
 

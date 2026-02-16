@@ -6,6 +6,12 @@
         return;
     }
 
+    if (!llsbaData.license || !llsbaData.license.active) {
+        root.find('#llsba-message').text(llsbaData.labels.unlicensed || 'License required').addClass('is-error');
+        root.find('button, input').prop('disabled', true);
+        return;
+    }
+
     const state = {
         contact: '',
         date: '',

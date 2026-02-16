@@ -11,9 +11,13 @@ class Ajax
     /** @var Settings */
     private $settings;
 
-    public function __construct(Settings $settings)
+    /** @var License */
+    private $license;
+
+    public function __construct(Settings $settings, License $license)
     {
         $this->settings = $settings;
+        $this->license  = $license;
 
         add_action('wp_ajax_llsba_month_data', [$this, 'month_data']);
         add_action('wp_ajax_nopriv_llsba_month_data', [$this, 'month_data']);
@@ -28,9 +32,10 @@ class Ajax
     public function month_data(): void
     {
         $this->check_nonce();
+        $this->enforce_license();
 
-        $year  = absint($_POST['year'] ?? 0);
-        $month = absint($_POST['month'] ?? 0);
+        $year  = absint(wp_unslash($_POST['year'] ?? 0));
+        $month = absint(wp_unslash($_POST['month'] ?? 0));
 
         if ($year < 2000 || $year > 2100 || $month < 1 || $month > 12) {
             wp_send_json_error(['message' => __('Invalid month.', 'll-simple-booking')], 400);
@@ -60,8 +65,9 @@ class Ajax
     public function day_slots(): void
     {
         $this->check_nonce();
+        $this->enforce_license();
 
-        $date = sanitize_text_field((string) ($_POST['date'] ?? ''));
+        $date = sanitize_text_field((string) wp_unslash($_POST['date'] ?? ''));
 
         if (! $this->is_valid_date($date)) {
             wp_send_json_error(['message' => __('Invalid date.', 'll-simple-booking')], 400);
@@ -93,10 +99,11 @@ class Ajax
     public function submit_booking(): void
     {
         $this->check_nonce();
+        $this->enforce_license();
 
-        $contact = preg_replace('/[^0-9+\-\s]/', '', (string) ($_POST['contact'] ?? ''));
-        $date    = sanitize_text_field((string) ($_POST['date'] ?? ''));
-        $time    = sanitize_text_field((string) ($_POST['time'] ?? ''));
+        $contact = preg_replace('/[^0-9+\-\s]/', '', (string) wp_unslash($_POST['contact'] ?? ''));
+        $date    = sanitize_text_field((string) wp_unslash($_POST['date'] ?? ''));
+        $time    = sanitize_text_field((string) wp_unslash($_POST['time'] ?? ''));
 
         if (strlen(trim((string) $contact)) < 6) {
             wp_send_json_error(['message' => __('Please enter a valid contact number.', 'll-simple-booking')], 400);
@@ -143,6 +150,13 @@ class Ajax
     {
         if (! check_ajax_referer('llsba_nonce', 'nonce', false)) {
             wp_send_json_error(['message' => __('Security check failed.', 'll-simple-booking')], 403);
+        }
+    }
+
+    private function enforce_license(): void
+    {
+        if (! $this->license->can_run()) {
+            wp_send_json_error(['message' => __('License is inactive. Please activate your plugin license.', 'll-simple-booking')], 403);
         }
     }
 
