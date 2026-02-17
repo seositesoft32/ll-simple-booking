@@ -2,7 +2,7 @@
 /**
  * Plugin Name: LL Simple Booking Appointments
  * Description: AJAX-based multi-step appointment booking with custom post type, admin table, and availability settings.
- * Version: 1.5
+ * Version: 1.6
  * Author: Lievelingslinnen
  * Requires at least: 6.0
  * Tested up to: 6.7
@@ -17,7 +17,7 @@ if (! defined('ABSPATH')) {
     exit;
 }
 
-define('LLSBA_VERSION', '1.5'); 
+define('LLSBA_VERSION', '1.6'); 
 define('LLSBA_FILE', __FILE__);
 define('LLSBA_PATH', plugin_dir_path(__FILE__));
 define('LLSBA_URL', plugin_dir_url(__FILE__));

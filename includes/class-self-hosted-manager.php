@@ -17,10 +17,40 @@ class Self_Hosted_Manager
 
         add_filter('llsba_license_validate_payload', [$this, 'validate_payload'], 10, 2);
         add_filter('pre_set_site_transient_update_plugins', [$this, 'inject_update']);
+        add_filter('site_transient_update_plugins', [$this, 'refresh_cached_update_payload']);
         add_filter('plugins_api', [$this, 'plugin_information'], 10, 3);
         add_filter('http_request_args', [$this, 'filter_http_request_args'], 10, 2);
         add_action('admin_init', [$this, 'refresh_update_cache_on_update_screens']);
         add_action('upgrader_process_complete', [$this, 'clear_update_cache'], 10, 2);
+    }
+
+    public function refresh_cached_update_payload($transient)
+    {
+        if (! is_object($transient)) {
+            return $transient;
+        }
+
+        if (! $this->license->can_run()) {
+            return $transient;
+        }
+
+        $plugin_file  = plugin_basename(LLSBA_FILE);
+        $license_code = $this->license->get_purchase_code();
+        if ('' === $license_code) {
+            return $transient;
+        }
+
+        $fresh_download_url = esc_url_raw($this->build_download_url($license_code));
+
+        if (isset($transient->response) && is_array($transient->response) && isset($transient->response[$plugin_file]) && is_object($transient->response[$plugin_file])) {
+            $transient->response[$plugin_file]->package = $fresh_download_url;
+        }
+
+        if (isset($transient->no_update) && is_array($transient->no_update) && isset($transient->no_update[$plugin_file]) && is_object($transient->no_update[$plugin_file])) {
+            $transient->no_update[$plugin_file]->package = $fresh_download_url;
+        }
+
+        return $transient;
     }
 
     public function validate_payload($result, array $payload)
