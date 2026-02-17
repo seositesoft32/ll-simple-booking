@@ -69,12 +69,16 @@ class License
             $this->request_validation('deactivate', $purchase_code, (string) $data['source']);
         }
 
-        $data['status']       = 'inactive';
-        $data['license_key']  = '';
-        $data['valid_until']  = '';
-        $data['last_checked'] = time();
-        $data['grace_until']  = time();
-        $data['signature']    = $this->signature_for($data);
+        $data['status']        = 'inactive';
+        $data['purchase_code'] = '';
+        $data['purchase_hash'] = '';
+        $data['license_key']   = '';
+        $data['customer']      = '';
+        $data['valid_until']   = '';
+        $data['last_error']    = '';
+        $data['last_checked']  = time();
+        $data['grace_until']   = time();
+        $data['signature']     = $this->signature_for($data);
 
         update_option(self::OPTION_KEY, $data, false);
         return [
@@ -169,6 +173,10 @@ class License
     public function maybe_recheck(): void
     {
         $data = $this->get_data();
+
+        if ('active' !== (string) $data['status']) {
+            return;
+        }
 
         if (time() - (int) $data['last_checked'] < DAY_IN_SECONDS) {
             return;

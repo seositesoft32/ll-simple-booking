@@ -79,6 +79,10 @@ class Self_Hosted_Manager
             return $transient;
         }
 
+        if (! $this->license->can_run()) {
+            return $transient;
+        }
+
         $plugin_file = plugin_basename(LLSBA_FILE);
         if (! isset($transient->checked[$plugin_file])) {
             return $transient;
@@ -130,6 +134,10 @@ class Self_Hosted_Manager
     public function plugin_information($result, string $action, $args)
     {
         if ('plugin_information' !== $action || ! is_object($args) || empty($args->slug) || $args->slug !== $this->product_slug()) {
+            return $result;
+        }
+
+        if (! $this->license->can_run()) {
             return $result;
         }
 
