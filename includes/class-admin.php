@@ -22,8 +22,8 @@ class Admin
         add_action('admin_menu', [$this, 'menu']);
         add_action('admin_init', [$this->settings, 'register']);
         add_action('admin_init', [$this, 'guard_admin_access'], 1);
-        add_action('admin_post_llsba_activate_license', [$this, 'activate_license']);
-        add_action('admin_post_llsba_deactivate_license', [$this, 'deactivate_license']);
+        add_action('admin_post_' . IDs::get('action_activate'), [$this, 'activate_license']);
+        add_action('admin_post_' . IDs::get('action_deactivate'), [$this, 'deactivate_license']);
     }
 
     public function menu(): void
@@ -44,7 +44,7 @@ class Admin
                 __('License', 'll-simple-booking'),
                 __('License', 'll-simple-booking'),
                 'manage_options',
-                'llsba-license',
+                IDs::get('page_license'),
                 [$this, 'license_page']
             );
 
@@ -74,7 +74,7 @@ class Admin
             __('License', 'll-simple-booking'),
             __('License', 'll-simple-booking'),
             'manage_options',
-            'llsba-license',
+            IDs::get('page_license'),
             [$this, 'license_page']
         );
     }
@@ -247,8 +247,8 @@ class Admin
             </table>
 
             <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="margin-bottom: 20px;">
-                <?php wp_nonce_field('llsba_activate_license'); ?>
-                <input type="hidden" name="action" value="llsba_activate_license" />
+                <?php wp_nonce_field(IDs::get('nonce_activate')); ?>
+                <input type="hidden" name="action" value="<?php echo esc_attr(IDs::get('action_activate')); ?>" />
 
                 <table class="form-table" role="presentation">
                     <tr>
@@ -274,8 +274,8 @@ class Admin
             </form>
 
             <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
-                <?php wp_nonce_field('llsba_deactivate_license'); ?>
-                <input type="hidden" name="action" value="llsba_deactivate_license" />
+                <?php wp_nonce_field(IDs::get('nonce_deactivate')); ?>
+                <input type="hidden" name="action" value="<?php echo esc_attr(IDs::get('action_deactivate')); ?>" />
                 <?php submit_button(__('Deactivate License', 'll-simple-booking'), 'secondary'); ?>
             </form>
         </div>
@@ -288,7 +288,7 @@ class Admin
             wp_die(esc_html__('Unauthorized request.', 'll-simple-booking'));
         }
 
-        check_admin_referer('llsba_activate_license');
+        check_admin_referer(IDs::get('nonce_activate'));
 
         $purchase_code = sanitize_text_field((string) wp_unslash($_POST['purchase_code'] ?? ''));
         $source        = sanitize_text_field((string) wp_unslash($_POST['source'] ?? 'envato'));
@@ -303,7 +303,7 @@ class Admin
             wp_die(esc_html__('Unauthorized request.', 'll-simple-booking'));
         }
 
-        check_admin_referer('llsba_deactivate_license');
+        check_admin_referer(IDs::get('nonce_deactivate'));
 
         $result = $this->license->deactivate();
         $this->redirect_license_page((string) $result['message'], ! empty($result['success']));
@@ -312,7 +312,7 @@ class Admin
     private function redirect_license_page(string $message, bool $success): void
     {
         $url = add_query_arg([
-            'page'          => 'llsba-license',
+            'page'          => IDs::get('page_license'),
             'llsba_notice'  => $message,
             'llsba_success' => $success ? '1' : null,
         ], admin_url('admin.php'));
@@ -335,18 +335,18 @@ class Admin
         $action    = isset($_REQUEST['action']) ? sanitize_key((string) wp_unslash($_REQUEST['action'])) : '';
         $post_type = isset($_GET['post_type']) ? sanitize_key((string) wp_unslash($_GET['post_type'])) : '';
 
-        $allowed_actions = ['llsba_activate_license', 'llsba_deactivate_license'];
+        $allowed_actions = [IDs::get('action_activate'), IDs::get('action_deactivate')];
         if (in_array($action, $allowed_actions, true)) {
             return;
         }
 
-        if ('llsba-license' === $page) {
+        if (IDs::get('page_license') === $page) {
             return;
         }
 
         if (Post_Type::TYPE === $post_type || 0 === strpos($page, 'llsba-')) {
             wp_safe_redirect(add_query_arg([
-                'page'         => 'llsba-license',
+                'page'         => IDs::get('page_license'),
                 'llsba_notice' => __('License inactive. Activate your license to unlock all plugin features.', 'll-simple-booking'),
             ], admin_url('admin.php')));
             exit;

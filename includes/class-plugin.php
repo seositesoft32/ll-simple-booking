@@ -72,6 +72,7 @@ class Plugin
     {
         require_once LLSBA_PATH . 'includes/class-post-type.php';
         require_once LLSBA_PATH . 'includes/class-settings.php';
+        require_once LLSBA_PATH . 'includes/class-ids.php';
         require_once LLSBA_PATH . 'includes/class-license.php';
         require_once LLSBA_PATH . 'includes/class-self-hosted-manager.php';
         require_once LLSBA_PATH . 'includes/class-shortcode.php';

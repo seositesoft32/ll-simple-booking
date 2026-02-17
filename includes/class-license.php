@@ -8,7 +8,6 @@ if (! defined('ABSPATH')) {
 
 class License
 {
-    private const OPTION_KEY = 'llsba_license_data';
     private const CRON_HOOK = 'llsba_license_recheck';
 
     public function __construct()
@@ -51,7 +50,7 @@ class License
         $data['signature']      = $this->signature_for($data);
         $data['last_error']     = '';
 
-        update_option(self::OPTION_KEY, $data, false);
+        update_option($this->option_key(), $data, false);
         $this->ensure_cron();
 
         return [
@@ -80,7 +79,7 @@ class License
         $data['grace_until']   = time();
         $data['signature']     = $this->signature_for($data);
 
-        update_option(self::OPTION_KEY, $data, false);
+        update_option($this->option_key(), $data, false);
         return [
             'success' => true,
             'message' => __('License deactivated.', 'll-simple-booking'),
@@ -141,7 +140,7 @@ class License
 
     public function get_data(): array
     {
-        $stored = get_option(self::OPTION_KEY, []);
+        $stored = get_option($this->option_key(), []);
         if (! is_array($stored)) {
             $stored = [];
         }
@@ -224,7 +223,7 @@ class License
         }
 
         $data['signature'] = $this->signature_for($data);
-        update_option(self::OPTION_KEY, $data, false);
+        update_option($this->option_key(), $data, false);
     }
 
     public function scheduled_recheck(): void
@@ -442,5 +441,10 @@ class License
             $api_url,
             $action
         );
+    }
+
+    private function option_key(): string
+    {
+        return IDs::get('opt_license');
     }
 }
