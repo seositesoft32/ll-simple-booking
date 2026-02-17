@@ -340,7 +340,7 @@ class Admin
             return;
         }
 
-        if ('llsba_license' === $page) {
+        if ('llsba-license' === $page) {
             return;
         }
 
