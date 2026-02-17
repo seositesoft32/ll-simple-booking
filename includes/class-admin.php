@@ -294,6 +294,8 @@ class Admin
         $source        = sanitize_text_field((string) wp_unslash($_POST['source'] ?? 'envato'));
         $result        = $this->license->activate($purchase_code, $source);
 
+        delete_site_transient('update_plugins');
+
         $this->redirect_license_page((string) $result['message'], ! empty($result['success']));
     }
 
@@ -306,6 +308,7 @@ class Admin
         check_admin_referer(IDs::get('nonce_deactivate'));
 
         $result = $this->license->deactivate();
+        delete_site_transient('update_plugins');
         $this->redirect_license_page((string) $result['message'], ! empty($result['success']));
     }
 

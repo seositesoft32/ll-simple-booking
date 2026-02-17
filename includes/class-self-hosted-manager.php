@@ -18,6 +18,7 @@ class Self_Hosted_Manager
         add_filter('llsba_license_validate_payload', [$this, 'validate_payload'], 10, 2);
         add_filter('pre_set_site_transient_update_plugins', [$this, 'inject_update']);
         add_filter('plugins_api', [$this, 'plugin_information'], 10, 3);
+        add_filter('http_request_args', [$this, 'filter_http_request_args'], 10, 2);
         add_action('upgrader_process_complete', [$this, 'clear_update_cache'], 10, 2);
     }
 
@@ -104,6 +105,8 @@ class Self_Hosted_Manager
             return $transient;
         }
 
+        $download_url = $this->build_download_url($license_code, (string) ($data['download_url'] ?? ''));
+
         if (version_compare(LLSBA_VERSION, $remote_version, '<')) {
             $transient->response[$plugin_file] = (object) [
                 'slug'         => $this->product_slug(),
@@ -112,7 +115,7 @@ class Self_Hosted_Manager
                 'tested'       => sanitize_text_field((string) ($data['tested'] ?? '')),
                 'requires'     => sanitize_text_field((string) ($data['requires'] ?? '')),
                 'requires_php' => sanitize_text_field((string) ($data['requires_php'] ?? '')),
-                'package'      => esc_url_raw((string) ($data['download_url'] ?? '')),
+                'package'      => esc_url_raw($download_url),
                 'url'          => home_url('/'),
             ];
         } else {
@@ -123,7 +126,7 @@ class Self_Hosted_Manager
                 'tested'       => sanitize_text_field((string) ($data['tested'] ?? '')),
                 'requires'     => sanitize_text_field((string) ($data['requires'] ?? '')),
                 'requires_php' => sanitize_text_field((string) ($data['requires_php'] ?? '')),
-                'package'      => esc_url_raw((string) ($data['download_url'] ?? '')),
+                'package'      => esc_url_raw($download_url),
                 'url'          => home_url('/'),
             ];
         }
@@ -152,6 +155,7 @@ class Self_Hosted_Manager
         }
 
         $data = $info['data'];
+        $download_url = $this->build_download_url($license_code, (string) ($data['download_url'] ?? ''));
 
         return (object) [
             'name'          => sanitize_text_field((string) ($data['name'] ?? 'LL Simple Booking Appointments')),
@@ -163,7 +167,7 @@ class Self_Hosted_Manager
             'requires_php'  => sanitize_text_field((string) ($data['requires_php'] ?? '')),
             'tested'        => sanitize_text_field((string) ($data['tested'] ?? '')),
             'last_updated'  => sanitize_text_field((string) ($data['last_updated'] ?? gmdate('Y-m-d H:i:s'))),
-            'download_link' => esc_url_raw((string) ($data['download_url'] ?? '')),
+            'download_link' => esc_url_raw($download_url),
             'sections'      => is_array($data['sections'] ?? null) ? $data['sections'] : [
                 'description' => '',
                 'changelog'   => '',
@@ -176,6 +180,19 @@ class Self_Hosted_Manager
         if (! empty($options['type']) && 'plugin' === $options['type']) {
             delete_site_transient('update_plugins');
         }
+    }
+
+    public function filter_http_request_args(array $args, string $url): array
+    {
+        if ($this->sslverify()) {
+            return $args;
+        }
+
+        if ($this->is_self_hosted_update_url($url)) {
+            $args['sslverify'] = false;
+        }
+
+        return $args;
     }
 
     private function fetch_plugin_info(string $license_code): array
@@ -219,6 +236,39 @@ class Self_Hosted_Manager
     private function product_slug(): string
     {
         return sanitize_title((string) apply_filters('llsba_self_hosted_product_slug', 'll-simple-booking'));
+    }
+
+    private function build_download_url(string $license_code, string $fallback = ''): string
+    {
+        if ('' === $license_code) {
+            return $fallback;
+        }
+
+        return add_query_arg([
+            'product_slug' => $this->product_slug(),
+            'license_code' => $license_code,
+        ], $this->rest_url('/download'));
+    }
+
+    private function is_self_hosted_update_url(string $url): bool
+    {
+        $url = (string) $url;
+
+        if ('' === $url) {
+            return false;
+        }
+
+        $base = $this->rest_url('/');
+        if (0 === strpos($url, $base)) {
+            return true;
+        }
+
+        $download_base = $this->rest_url('/download');
+        if (0 === strpos($url, $download_base)) {
+            return true;
+        }
+
+        return false;
     }
 
     private function sslverify(): bool
