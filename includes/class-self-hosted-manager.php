@@ -39,8 +39,9 @@ class Self_Hosted_Manager
         }
 
         $request = wp_remote_post($this->rest_url('/validate'), [
-            'timeout' => 20,
-            'body'    => [
+            'timeout'   => 20,
+            'sslverify' => $this->sslverify(),
+            'body'      => [
                 'license_code' => $purchase_code,
                 'product_slug' => $this->product_slug(),
                 'domain'       => wp_parse_url(home_url(), PHP_URL_HOST),
@@ -175,7 +176,8 @@ class Self_Hosted_Manager
             'product_slug' => $this->product_slug(),
             'license_code' => $license_code,
         ], $this->rest_url('/plugin-info')), [
-            'timeout' => 20,
+            'timeout'   => 20,
+            'sslverify' => $this->sslverify(),
         ]);
 
         if (is_wp_error($request)) {
@@ -209,5 +211,10 @@ class Self_Hosted_Manager
     private function product_slug(): string
     {
         return sanitize_title((string) apply_filters('llsba_self_hosted_product_slug', 'll-simple-booking'));
+    }
+
+    private function sslverify(): bool
+    {
+        return (bool) apply_filters('llsba_self_hosted_sslverify', false);
     }
 }

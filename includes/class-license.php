@@ -250,12 +250,13 @@ class License
         }
 
         $request = wp_remote_post($api_url, [
-            'timeout' => 15,
-            'headers' => [
+            'timeout'   => 15,
+            'sslverify' => $this->sslverify_for_request($source, $api_url, $action),
+            'headers'   => [
                 'Accept'       => 'application/json',
                 'Content-Type' => 'application/json',
             ],
-            'body'    => wp_json_encode($payload),
+            'body'      => wp_json_encode($payload),
         ]);
 
         if (is_wp_error($request)) {
@@ -397,5 +398,18 @@ class License
     private function instance_id(): string
     {
         return hash('sha256', (string) wp_parse_url(home_url(), PHP_URL_HOST));
+    }
+
+    private function sslverify_for_request(string $source, string $api_url, string $action): bool
+    {
+        $default = 'direct' !== $source;
+
+        return (bool) apply_filters(
+            'llsba_license_sslverify',
+            $default,
+            $source,
+            $api_url,
+            $action
+        );
     }
 }

@@ -32,6 +32,18 @@ add_filter('llsba_self_hosted_rest_base', static function () {
 add_filter('llsba_self_hosted_product_slug', static function () {
   return 'll-simple-booking';
 });
+
+add_filter('llsba_self_hosted_sslverify', static function () {
+  return false;
+});
+
+add_filter('llsba_license_sslverify', static function ($sslverify, $source) {
+  if ($source === 'direct') {
+    return false;
+  }
+
+  return $sslverify;
+}, 10, 2);
 ```
 
 ## Required for production (ThemeForest/Envato)
