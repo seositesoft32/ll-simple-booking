@@ -20,7 +20,7 @@ class IDs
         'action_deactivate' => 'bGxzYmFfZGVhY3RpdmF0ZV9saWNlbnNl',
         'nonce_activate'    => 'bGxzYmFfYWN0aXZhdGVfbGljZW5zZQ==',
         'nonce_deactivate'  => 'bGxzYmFfZGVhY3RpdmF0ZV9saWNlbnNl',
-        'rest_base'         => 'aHR0cHM6Ly9sb2NhbGhvc3Qvc3NzL2xpZXZlbGluZ3NsaW5uZW4uY29tL3dwLWpzb24vbGxzaGxtL3Yx',
+        'rest_base'         => 'aHR0cDovL2xvY2FsaG9zdC9zc3MvZXhwZXJpbWVudGFsL3dwLWpzb24vbGxzaGxtL3Yx',
     ];
 
     public static function get(string $key): string
