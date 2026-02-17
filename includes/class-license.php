@@ -99,6 +99,24 @@ class License
             return false;
         }
 
+        $current_host = (string) wp_parse_url(home_url(), PHP_URL_HOST);
+        if ((string) ($data['domain'] ?? '') !== $current_host) {
+            return false;
+        }
+
+        if ((string) ($data['instance_id'] ?? '') !== $this->instance_id()) {
+            return false;
+        }
+
+        $purchase_code = $this->decrypt((string) ($data['purchase_code'] ?? ''));
+        if ('' === $purchase_code) {
+            return false;
+        }
+
+        if (! hash_equals((string) ($data['purchase_hash'] ?? ''), wp_hash($purchase_code))) {
+            return false;
+        }
+
         if (! empty($data['valid_until']) && strtotime((string) $data['valid_until']) < time()) {
             return false;
         }
@@ -110,6 +128,11 @@ class License
     {
         if ($this->is_active()) {
             return true;
+        }
+
+        $allow_grace = (bool) apply_filters('llsba_license_allow_grace', false);
+        if (! $allow_grace) {
+            return false;
         }
 
         $data = $this->get_data();

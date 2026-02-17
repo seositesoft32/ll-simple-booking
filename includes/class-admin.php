@@ -21,6 +21,7 @@ class Admin
 
         add_action('admin_menu', [$this, 'menu']);
         add_action('admin_init', [$this->settings, 'register']);
+        add_action('admin_init', [$this, 'guard_admin_access'], 1);
         add_action('admin_post_llsba_activate_license', [$this, 'activate_license']);
         add_action('admin_post_llsba_deactivate_license', [$this, 'deactivate_license']);
     }
@@ -32,10 +33,23 @@ class Admin
             __('Simple Booking', 'll-simple-booking'),
             'manage_options',
             'llsba-bookings',
-            [$this, 'bookings_page'],
+            $this->license->can_run() ? [$this, 'bookings_page'] : [$this, 'license_page'],
             'dashicons-calendar-alt',
             57
         );
+
+        if (! $this->license->can_run()) {
+            add_submenu_page(
+                'llsba-bookings',
+                __('License', 'll-simple-booking'),
+                __('License', 'll-simple-booking'),
+                'manage_options',
+                'llsba-license',
+                [$this, 'license_page']
+            );
+
+            return;
+        }
 
         add_submenu_page(
             'llsba-bookings',
@@ -69,6 +83,10 @@ class Admin
     {
         if (! current_user_can('manage_options')) {
             return;
+        }
+
+        if (! $this->license->can_run()) {
+            wp_die(esc_html__('License inactive. Activate your license to access bookings.', 'll-simple-booking'));
         }
 
         $query = new \WP_Query([
@@ -119,6 +137,10 @@ class Admin
     {
         if (! current_user_can('manage_options')) {
             return;
+        }
+
+        if (! $this->license->can_run()) {
+            wp_die(esc_html__('License inactive. Activate your license to access settings.', 'll-simple-booking'));
         }
 
         $settings = $this->settings->get();
@@ -297,5 +319,37 @@ class Admin
 
         wp_safe_redirect($url);
         exit;
+    }
+
+    public function guard_admin_access(): void
+    {
+        if (! is_admin() || ! current_user_can('manage_options')) {
+            return;
+        }
+
+        if ($this->license->can_run()) {
+            return;
+        }
+
+        $page      = isset($_GET['page']) ? sanitize_key((string) wp_unslash($_GET['page'])) : '';
+        $action    = isset($_REQUEST['action']) ? sanitize_key((string) wp_unslash($_REQUEST['action'])) : '';
+        $post_type = isset($_GET['post_type']) ? sanitize_key((string) wp_unslash($_GET['post_type'])) : '';
+
+        $allowed_actions = ['llsba_activate_license', 'llsba_deactivate_license'];
+        if (in_array($action, $allowed_actions, true)) {
+            return;
+        }
+
+        if ('llsba_license' === $page) {
+            return;
+        }
+
+        if (Post_Type::TYPE === $post_type || 0 === strpos($page, 'llsba-')) {
+            wp_safe_redirect(add_query_arg([
+                'page'         => 'llsba-license',
+                'llsba_notice' => __('License inactive. Activate your license to unlock all plugin features.', 'll-simple-booking'),
+            ], admin_url('admin.php')));
+            exit;
+        }
     }
 }
