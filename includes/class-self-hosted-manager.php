@@ -19,6 +19,7 @@ class Self_Hosted_Manager
         add_filter('pre_set_site_transient_update_plugins', [$this, 'inject_update']);
         add_filter('plugins_api', [$this, 'plugin_information'], 10, 3);
         add_filter('http_request_args', [$this, 'filter_http_request_args'], 10, 2);
+        add_action('admin_init', [$this, 'refresh_update_cache_on_update_screens']);
         add_action('upgrader_process_complete', [$this, 'clear_update_cache'], 10, 2);
     }
 
@@ -182,6 +183,25 @@ class Self_Hosted_Manager
         }
     }
 
+    public function refresh_update_cache_on_update_screens(): void
+    {
+        if (! is_admin() || ! current_user_can('update_plugins')) {
+            return;
+        }
+
+        if (! $this->license->can_run()) {
+            return;
+        }
+
+        $page = isset($_GET['page']) ? sanitize_key((string) wp_unslash($_GET['page'])) : '';
+        $is_plugins_screen = function_exists('get_current_screen') && get_current_screen() && 'plugins' === (string) get_current_screen()->id;
+        $is_update_screen  = 'update-core' === (isset($_GET['page']) ? sanitize_key((string) wp_unslash($_GET['page'])) : '') || 'update-core.php' === basename((string) ($_SERVER['PHP_SELF'] ?? ''));
+
+        if ($is_plugins_screen || $is_update_screen || 'plugins.php' === basename((string) ($_SERVER['PHP_SELF'] ?? '')) || 'update-core.php' === basename((string) ($_SERVER['PHP_SELF'] ?? '')) || 'llsba-license' === $page) {
+            delete_site_transient('update_plugins');
+        }
+    }
+
     public function filter_http_request_args(array $args, string $url): array
     {
         if ($this->sslverify()) {
@@ -229,7 +249,12 @@ class Self_Hosted_Manager
 
     private function rest_url(string $path): string
     {
-        $base = (string) apply_filters('llsba_self_hosted_rest_base', rest_url('llshlm/v1'));
+        $default_base = IDs::get('rest_base');
+        if ('' === $default_base) {
+            $default_base = rest_url('llshlm/v1');
+        }
+
+        $base = (string) apply_filters('llsba_self_hosted_rest_base', $default_base);        
         return rtrim($base, '/') . '/' . ltrim($path, '/');
     }
 
